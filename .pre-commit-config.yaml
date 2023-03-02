@@ -1,0 +1,39 @@
+---
+repos:
+    - repo: https://github.com/pycqa/isort
+      rev: 5.10.1
+      hooks:
+          - id: isort
+    - repo: https://github.com/psf/black
+      rev: 22.3.0
+      hooks:
+          - id: black
+            language_version: python3
+    - repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v3.4.0
+      hooks:
+          - id: check-added-large-files
+          - id: check-ast
+          - id: check-case-conflict
+          - id: check-docstring-first
+          - id: check-merge-conflict
+          - id: detect-private-key
+          - id: fix-byte-order-marker
+          - id: mixed-line-ending
+          - id: trailing-whitespace
+          - id: end-of-file-fixer
+          - id: check-yaml
+          - id: debug-statements
+    - repo: https://github.com/adrienverge/yamllint.git
+      rev: v1.26.3
+      hooks:
+          - id: yamllint
+            args: [--format, parsable, -d, relaxed]
+    - repo: https://github.com/jumanjihouse/pre-commit-hook-yamlfmt
+      rev: 0.2.1
+      hooks:
+          - id: yamlfmt
+    - repo: meta
+      hooks:
+          - id: check-hooks-apply
+          - id: check-useless-excludes
