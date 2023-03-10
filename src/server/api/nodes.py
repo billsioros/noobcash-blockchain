@@ -28,6 +28,6 @@ def routing_table():
 
     current_app.node.routing_table = request.get_json()
 
-    logger.info("Retrieved ring")
+    logger.info("Retrieved network")
 
     return blueprint.success()

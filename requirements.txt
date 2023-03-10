@@ -8,7 +8,7 @@ pre-commit==2.17.0
 requests==2.27.1
 flask==2.0.3
 flask-cors==3.0.10
-crypto==1.4.1
+pycryptodome==3.17
 click==8.0.4
 rich==12.6.0
 rich-click==1.2.1

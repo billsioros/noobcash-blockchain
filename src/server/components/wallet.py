@@ -1,16 +1,22 @@
-import binascii
-import hashlib
-import json
-from time import time
-from urllib.parse import urlparse
-from uuid import uuid4
+import typing as tp
+from dataclasses import dataclass
 
-import Crypto
-import Crypto.Random
-from Crypto.Hash import SHA
 from Crypto.PublicKey import RSA
-from Crypto.Signature import PKCS1_v1_5
 
 
+@dataclass
 class Wallet(object):
-    pass
+    public_key: tp.Optional[str] = None
+    private_key: tp.Optional[str] = None
+
+    @classmethod
+    def generate_wallet(cls) -> tp.Tuple[str, str]:
+        # Generate a new RSA key pair
+        key_pair = RSA.generate(2048)
+
+        # Extract the public and private keys
+        private_key = key_pair.export_key()
+        public_key = key_pair.publickey().export_key()
+
+        # Return the keys as hex-encoded strings
+        return private_key.hex(), public_key.hex()
