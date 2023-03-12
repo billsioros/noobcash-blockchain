@@ -1,25 +1,24 @@
 import hashlib
 import typing as tp
-from dataclasses import dataclass, field
 from datetime import datetime
 
+from components import Serializable
 from components.transaction import Transaction
 from loguru import logger
+from pydantic import Field
 
 
-@dataclass
-class Block(object):
+class Block(Serializable):
     capacity: int
     index: int
     timestamp: datetime
     nonce: int
-    current_hash: str
     previous_hash: str
-    transactions: tp.List[Transaction] = field(default_factory=list)
+    transactions: tp.List[Transaction] = Field(default_factory=list)
 
     def validate_block(self, prev_block: "Block") -> bool:
         # Check if block's current hash is correct
-        block_hash = hashlib.sha256(str(self.asdict()).encode()).hexdigest()
+        block_hash = hashlib.sha256(self.json()).encode("utf-8").hexdigest()
         if block_hash != self.current_hash:
             logger.info("Block hash is incorrect")
             return False
@@ -30,3 +29,7 @@ class Block(object):
             return False
 
         return True
+
+    @property
+    def current_hash(self) -> None:
+        return hashlib.sha256(self.json()).encode("utf-8").hexdigest()

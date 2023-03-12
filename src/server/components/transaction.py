@@ -1,27 +1,31 @@
 import hashlib
 import json
 import typing as tp
-from dataclasses import dataclass, field
 
+from components import Serializable
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5
+from pydantic import Field
 
 
-@dataclass
-class Transaction(object):
+class Transaction(Serializable):
     sender_address: str
-    receiver_address: str
-    amount: float
-    transaction_id: str
-    transaction_inputs: tp.List["Transaction"] = field(default_factory=list)
-    transaction_outputs: tp.List["Transaction"] = field(default_factory=list)
+    recipient_address: str
+    amount: int
+    id: tp.Optional[str] = None
+    transaction_inputs: tp.List[str] = Field(default_factory=list)
+    transaction_outputs: tp.List[tp.Tuple[str, str, str, int]] = Field(
+        default_factory=list
+    )
     signature: tp.Optional[str] = None
 
-    def __post_init__(self) -> None:
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
         transaction_data = {
             "sender_address": self.sender_address,
-            "receiver_address": self.receiver_address,
+            "recipient_address": self.recipient_address,
             "amount": self.amount,
             "transaction_inputs": self.transaction_inputs,
             "transaction_outputs": self.transaction_outputs,
@@ -32,38 +36,40 @@ class Transaction(object):
             "utf-8"
         )
 
-        self.transaction_id = hashlib.sha256(transaction_string).hexdigest()
+        self.id = hashlib.sha256(transaction_string).hexdigest()
+
+    @property
+    def transaction_id(self) -> str:
+        return self.id
 
     @classmethod
     def create_transaction(
         cls,
         sender_address: str,
-        receiver_address: str,
-        amount: float,
+        recipient_address: str,
+        amount: int,
         transaction_inputs: tp.List["Transaction"],
         transaction_outputs: tp.List["Transaction"],
         private_key: str,
     ) -> "Transaction":
         transaction = Transaction(
-            sender_address,
-            receiver_address,
-            amount,
-            transaction_inputs,
-            transaction_outputs,
+            sender_address=sender_address,
+            recipient_address=recipient_address,
+            amount=amount,
+            transaction_inputs=transaction_inputs,
+            transaction_outputs=transaction_outputs,
         )
-        transaction.signature = cls.sign_transaction(
-            transaction.transaction_id, private_key
-        )
+        transaction.signature = cls.sign_transaction(transaction.id, private_key)
 
         return transaction
 
     @classmethod
-    def sign_transaction(cls, transaction_id: str, private_key: str) -> str:
+    def sign_transaction(cls, id: str, private_key: str) -> str:
         # Load the private key
-        key = RSA.import_key(private_key)
+        key = RSA.import_key(bytes.fromhex(private_key))
 
         # Hash the transaction ID
-        h = SHA256.new(transaction_id.encode("utf-8"))
+        h = SHA256.new(id.encode("utf-8"))
 
         # Sign the hash with the private key
         signer = PKCS1_v1_5.new(key)
@@ -75,10 +81,10 @@ class Transaction(object):
     @classmethod
     def verify_signature(cls, transaction):
         # Load the public key of the sender
-        key = RSA.import_key(transaction.sender_address)
+        key = RSA.import_key(bytes.fromhex(transaction.sender_address))
 
         # Hash the transaction ID
-        h = SHA256.new(transaction.transaction_id.encode("utf-8"))
+        h = SHA256.new(transaction.id.encode("utf-8"))
 
         # Verify the signature
         verifier = PKCS1_v1_5.new(key)
@@ -87,7 +93,7 @@ class Transaction(object):
 
     @classmethod
     def validate_transaction(
-        cls, transaction: "Transaction", unspent_tx_outputs: tp.List["Transaction"]
+        cls, transaction: "Transaction", utxos: tp.Tuple[str, str, str, int]
     ) -> bool:
         # Verify transaction signature
         if not cls.verify_signature(transaction):
@@ -96,7 +102,7 @@ class Transaction(object):
         # Check if transaction inputs are valid unspent transactions
         inputs_sum = 0
         for tx_input in transaction["transaction_inputs"]:
-            tx_output = unspent_tx_outputs.get(tx_input["previousOutputID"])
+            tx_output = utxos.get(tx_input["previousOutputID"])
             if not tx_output:
                 return False
             if tx_output["recipient"] != transaction["sender_address"]:
@@ -107,21 +113,21 @@ class Transaction(object):
         if inputs_sum < transaction["amount"]:
             return False
 
-        # Remove spent transaction inputs from unspent_tx_outputs and add new outputs
+        # Remove spent transaction inputs from utxos and add new outputs
         for tx_input in transaction["transaction_inputs"]:
-            del unspent_tx_outputs[tx_input["previousOutputID"]]
-        tx_id = transaction["transaction_id"]
-        unspent_tx_outputs[tx_id] = {
+            del utxos[tx_input["previousOutputID"]]
+        tx_id = transaction["id"]
+        utxos[tx_id] = {
             "id": tx_id,
-            "transaction_id": tx_id,
-            "recipient": transaction["receiver_address"],
+            "id": tx_id,
+            "recipient": transaction["recipient_address"],
             "amount": transaction["amount"],
         }
         change = inputs_sum - transaction["amount"]
         if change > 0:
-            unspent_tx_outputs[tx_id + "_change"] = {
+            utxos[tx_id + "_change"] = {
                 "id": tx_id + "_change",
-                "transaction_id": tx_id,
+                "id": tx_id,
                 "recipient": transaction["sender_address"],
                 "amount": change,
             }

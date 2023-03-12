@@ -39,6 +39,14 @@ CORS(app)
     help="The address of the bootstrap node",
 )
 @click.option(
+    "-c",
+    "--capacity",
+    type=int,
+    default=1,
+    show_default=True,
+    help="The capacity of each block",
+)
+@click.option(
     "-d",
     "--difficulty",
     type=int,
@@ -54,7 +62,10 @@ CORS(app)
     show_default=True,
     help="The total number of nodes",
 )
-def create_app(ip, port, bootstrap, difficulty, nodes):
+@click.option(
+    "-d", "--debug", is_flag=True, show_default=True, help="Enable debug mode"
+)
+def create_app(ip, port, bootstrap, capacity, difficulty, nodes, debug):
     setup_logging()
 
     register_blueprints(app, "api")
@@ -68,26 +79,30 @@ def create_app(ip, port, bootstrap, difficulty, nodes):
             request.full_path,
         )
 
-    @app.after_request
-    def _(response):
-        logger.info(
-            "{}: {} - {} [{}] {}",
-            request.remote_addr,
-            request.method,
-            request.full_path,
-            response.status,
-            response.data.decode("utf-8"),
-        )
-        return response
+    if debug is True:
+
+        @app.after_request
+        def _(response):
+            logger.info(
+                "{}: {} - {} [{}] {}",
+                request.remote_addr,
+                request.method,
+                request.full_path,
+                response.status,
+                response.data.decode("utf-8"),
+            )
+            return response
 
     @app.errorhandler(Exception)
     def _(error):
-        code, message = 500, "Unexpected Error!"
+        code, message = 500, str(error)
 
         if isinstance(error, HTTPException):
             code, message = error.code, error.description
 
-        logger.exception(f"{code}: {message}")
+            logger.error("HTTP Exception: ({}) {}", code, message)
+        else:
+            logger.exception("Unexpected error: {}", error)
 
         return jsonify({"message": message}), code, {"ContentType": "application/json"}
 
@@ -95,6 +110,7 @@ def create_app(ip, port, bootstrap, difficulty, nodes):
         app.node = Peer(
             ip=ip,
             port=port,
+            capacity=capacity,
             difficulty=difficulty,
             n_nodes=nodes,
             bootstrap_address=bootstrap,
@@ -103,12 +119,13 @@ def create_app(ip, port, bootstrap, difficulty, nodes):
         app.node = Bootstrap(
             ip=ip,
             port=port,
+            capacity=capacity,
             difficulty=difficulty,
             n_nodes=nodes,
             id=0,
         )
 
-    logger.info(f"Serving at {ip}:{port}")
+    logger.info("Serving at {}:{}", ip, port)
 
     waitress.serve(app, host=ip, port=port, threads=10)
 

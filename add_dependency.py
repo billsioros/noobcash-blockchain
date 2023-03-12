@@ -12,7 +12,9 @@ if __name__ == "__main__":
 
         with (Path.cwd() / "requirements.txt").open("a") as requirements_txt:
             try:
-                pip_freeze = subprocess.Popen((sys.executable, "-m", "pip", "freeze"), stdout=subprocess.PIPE)
+                pip_freeze = subprocess.Popen(
+                    (sys.executable, "-m", "pip", "freeze"), stdout=subprocess.PIPE
+                )
                 output = subprocess.check_output(
                     ("grep", dependency), stdin=pip_freeze.stdout
                 )
