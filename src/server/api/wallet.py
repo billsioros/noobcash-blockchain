@@ -1,7 +1,7 @@
 from core.blueprint import Blueprint
 from flask import current_app
 
-blueprint = Blueprint("wallet", __name__, url_prefix="/wallet")
+blueprint = Blueprint("wallet", __name__)
 
 
 @blueprint.route("/balance", methods=["GET"])

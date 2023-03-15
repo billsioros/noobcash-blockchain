@@ -20,24 +20,6 @@ class Transaction(Serializable):
     )
     signature: tp.Optional[str] = None
 
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
-
-        transaction_data = {
-            "sender_address": self.sender_address,
-            "recipient_address": self.recipient_address,
-            "amount": self.amount,
-            "transaction_inputs": self.transaction_inputs,
-            "transaction_outputs": self.transaction_outputs,
-            "signature": self.signature,
-        }
-
-        transaction_string = json.dumps(transaction_data, sort_keys=True).encode(
-            "utf-8"
-        )
-
-        self.id = hashlib.sha256(transaction_string).hexdigest()
-
     @property
     def transaction_id(self) -> str:
         return self.id
@@ -52,44 +34,57 @@ class Transaction(Serializable):
         transaction_outputs: tp.List["Transaction"],
         private_key: str,
     ) -> "Transaction":
-        transaction = Transaction(
+        transaction = cls(
             sender_address=sender_address,
             recipient_address=recipient_address,
             amount=amount,
             transaction_inputs=transaction_inputs,
             transaction_outputs=transaction_outputs,
         )
-        transaction.signature = cls.sign_transaction(transaction.id, private_key)
+        transaction_data = {
+            "sender_address": transaction.sender_address,
+            "recipient_address": transaction.recipient_address,
+            "amount": transaction.amount,
+            "transaction_inputs": transaction.transaction_inputs,
+            "transaction_outputs": transaction.transaction_outputs,
+            "signature": transaction.signature,
+        }
+
+        transaction_string = json.dumps(transaction_data, sort_keys=True).encode(
+            "utf-8"
+        )
+
+        transaction.id = hashlib.sha256(transaction_string).hexdigest()
+
+        transaction.sign_transaction(private_key)
 
         return transaction
 
-    @classmethod
-    def sign_transaction(cls, id: str, private_key: str) -> str:
+    def sign_transaction(self, private_key: str) -> None:
         # Load the private key
         key = RSA.import_key(bytes.fromhex(private_key))
 
         # Hash the transaction ID
-        h = SHA256.new(id.encode("utf-8"))
+        h = SHA256.new(self.id.encode("utf-8"))
 
         # Sign the hash with the private key
         signer = PKCS1_v1_5.new(key)
         signature = signer.sign(h)
 
         # Return the signature as a hex string
-        return signature.hex()
+        self.signature = signature.hex()
 
-    @classmethod
-    def verify_signature(cls, transaction):
+    def verify_signature(self):
         # Load the public key of the sender
-        key = RSA.import_key(bytes.fromhex(transaction.sender_address))
+        key = RSA.import_key(bytes.fromhex(self.sender_address))
 
         # Hash the transaction ID
-        h = SHA256.new(transaction.id.encode("utf-8"))
+        h = SHA256.new(self.id.encode("utf-8"))
 
         # Verify the signature
         verifier = PKCS1_v1_5.new(key)
 
-        return verifier.verify(h, bytes.fromhex(transaction.signature))
+        return verifier.verify(h, bytes.fromhex(self.signature))
 
     @classmethod
     def validate_transaction(

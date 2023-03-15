@@ -4,7 +4,7 @@ from core.blueprint import Blueprint
 from flask import current_app, request
 from loguru import logger
 
-blueprint = Blueprint("nodes", __name__, url_prefix="/nodes")
+blueprint = Blueprint("nodes", __name__)
 
 
 @blueprint.route("/register", methods=["POST"])
@@ -12,7 +12,7 @@ def register():
     if not current_app.node.is_bootstrap:
         blueprint.bad_request(f"Node {current_app.node.id} is not the bootstrap node")
 
-    payload = request.get_json()
+    payload = request.json
 
     node_id = current_app.node.enroll(
         f"http://{request.remote_addr}:{payload['port']}", payload["public_key"]
@@ -26,23 +26,23 @@ def enroll():
     if current_app.node.is_bootstrap:
         blueprint.bad_request(f"Node {current_app.node.id} is the bootstrap node")
 
-    payload = request.get_json()
+    payload = request.json
 
     network = payload.get("network", None)
 
-    block_chain = payload.get("block_chain", None)
-    block_chain = Blockchain.from_json(block_chain)
+    blockchain = payload.get("blockchain", None)
+    blockchain = Blockchain.from_json(blockchain)
 
-    if not network or not block_chain:
+    if not network or not blockchain:
         blueprint.bad_request("Either network or blockchain is empty or null")
 
-    for i in range(len(block_chain) - 1):
-        if not block_chain[i].validate_block(block_chain[i] - 1):
-            blueprint.bad_request("Invalid block chain")
+    result = current_app.node.validate_chain(blockchain)
+    if not result:
+        blueprint.error(result)
 
     current_app.node.network = network
-    current_app.node.block_chain = block_chain
+    current_app.node.blockchain = blockchain
 
-    logger.info("Node {} received network and block_chain", current_app.node.id)
+    logger.info("Node {} received network and blockchain", current_app.node.id)
 
     return blueprint.success()

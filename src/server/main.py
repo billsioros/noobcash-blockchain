@@ -63,7 +63,12 @@ CORS(app)
     help="The total number of nodes",
 )
 @click.option(
-    "-d", "--debug", is_flag=True, show_default=True, help="Enable debug mode"
+    "-d",
+    "--debug",
+    default=True,
+    is_flag=True,
+    show_default=True,
+    help="Enable debug mode",
 )
 def create_app(ip, port, bootstrap, capacity, difficulty, nodes, debug):
     setup_logging()
@@ -114,6 +119,7 @@ def create_app(ip, port, bootstrap, capacity, difficulty, nodes, debug):
             difficulty=difficulty,
             n_nodes=nodes,
             bootstrap_address=bootstrap,
+            debug=debug,
         )
     else:
         app.node = Bootstrap(
@@ -123,6 +129,7 @@ def create_app(ip, port, bootstrap, capacity, difficulty, nodes, debug):
             difficulty=difficulty,
             n_nodes=nodes,
             id=0,
+            debug=debug,
         )
 
     logger.info("Serving at {}:{}", ip, port)
