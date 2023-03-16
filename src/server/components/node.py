@@ -2,6 +2,7 @@ import threading
 import time
 import typing as tp
 from datetime import datetime
+from pathlib import Path
 
 from components import Serializable
 from components.block import Block
@@ -27,11 +28,15 @@ class Node(Serializable):
     network: tp.List[tp.Tuple[str, str]] = Field(default_factory=list)
     pending_transactions: tp.List[Transaction] = Field(default_factory=list)
     debug: bool = False
+    transactions_filepath: tp.Optional[Path] = None
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
         threading.Thread(target=self.mining).start()
+
+        if self.transactions_filepath is not None:
+            threading.Thread(target=self.transmit_transactions).start()
 
     @property
     def is_bootstrap(self) -> bool:
@@ -263,6 +268,21 @@ class Node(Serializable):
 
         # Replace the current blockchain with the new blockchain if it is longer and valid
         self.blockchain = longest_block_chain
+
+    def transmit_transactions(self):
+        while len(self.network) < self.n_nodes:
+            time.sleep(1)
+
+        logger.info("Reading transaction file {}", self.transactions_filepath)
+        with self.transactions_filepath.open("r") as file:
+            for node_id, amount in map(str.split, file.readlines()):
+                node_id, amount = int(node_id[2:]), int(amount)
+
+                _, receiver_address = self.network[node_id]
+                self.create_transaction(receiver_address, amount)
+                time.sleep(1)
+
+        logger.info("Finished reading file {}", self.transactions_filepath)
 
 
 class EnrollRequest(Serializable):

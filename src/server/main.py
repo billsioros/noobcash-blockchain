@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import rich_click as click
 import waitress
 from components.node import Bootstrap, Peer
@@ -63,7 +65,14 @@ CORS(app)
     help="The total number of nodes",
 )
 @click.option(
-    "-d",
+    "-t",
+    "--transactions",
+    type=click.Path(
+        exists=True, file_okay=True, dir_okay=False, readable=True, path_type=Path
+    ),
+    help="A plain-text file to read transactions from",
+)
+@click.option(
     "--debug",
     default=True,
     is_flag=True,
@@ -71,14 +80,15 @@ CORS(app)
     help="Enable debug mode",
 )
 @click.option(
-    "-v",
     "--verbose",
     default=False,
     is_flag=True,
     show_default=True,
     help="Enable verbose mode",
 )
-def create_app(ip, port, bootstrap, capacity, difficulty, nodes, debug, verbose):
+def create_app(
+    ip, port, bootstrap, capacity, difficulty, nodes, transactions, debug, verbose
+):
     setup_logging()
 
     register_blueprints(app, "api")
@@ -127,6 +137,7 @@ def create_app(ip, port, bootstrap, capacity, difficulty, nodes, debug, verbose)
             difficulty=difficulty,
             n_nodes=nodes,
             bootstrap_address=bootstrap,
+            transactions_filepath=transactions,
             debug=debug,
         )
     else:
@@ -137,6 +148,7 @@ def create_app(ip, port, bootstrap, capacity, difficulty, nodes, debug, verbose)
             difficulty=difficulty,
             n_nodes=nodes,
             id=0,
+            transactions_filepath=transactions,
             debug=debug,
         )
 
