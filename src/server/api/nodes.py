@@ -1,7 +1,6 @@
 from components.blockchain import Blockchain
 from core.blueprint import Blueprint
 from flask import current_app, request
-from loguru import logger
 
 blueprint = Blueprint("nodes", __name__)
 
@@ -26,22 +25,15 @@ def enroll():
         blueprint.bad_request(f"Node {current_app.node.id} is the bootstrap node")
 
     payload = request.json
-
     network = payload.get("network", None)
-
     blockchain = payload.get("blockchain", None)
-    blockchain = Blockchain.from_json(blockchain)
 
     if not network or not blockchain:
         blueprint.bad_request("Either network or blockchain is empty or null")
 
-    result = current_app.node.validate_chain(blockchain)
+    blockchain = Blockchain.from_json(blockchain)
+    result = current_app.node.enroll_acknowledge(network, blockchain)
     if not result:
         blueprint.error(result)
-
-    current_app.node.network = network
-    current_app.node.blockchain = blockchain
-
-    logger.info("Node {} received network and blockchain", current_app.node.id)
 
     return blueprint.success()

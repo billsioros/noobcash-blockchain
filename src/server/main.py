@@ -42,7 +42,7 @@ CORS(app)
     "-c",
     "--capacity",
     type=int,
-    default=1,
+    default=5,
     show_default=True,
     help="The capacity of each block",
 )
