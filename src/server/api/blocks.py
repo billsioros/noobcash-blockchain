@@ -15,7 +15,7 @@ def broadcast():
     result = current_app.node.validate_block(block)
     if not result:
         current_app.node.resolve_conflict()
-        return blueprint.success({"success": True, "message": "Synced blockchain."})
+        return blueprint.success({"success": True, "message": "Synced blockchain"})
 
     current_app.node.persist_block(block)
 

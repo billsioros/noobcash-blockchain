@@ -35,7 +35,7 @@ def broadcast():
 
     result = current_app.node.validate_transaction(transaction)
     if not result:
-        blueprint.error(result)
+        blueprint.error(result.error)
 
     current_app.node.persist_transaction(transaction)
 

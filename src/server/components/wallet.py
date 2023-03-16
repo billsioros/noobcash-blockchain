@@ -26,6 +26,9 @@ class Wallet(Serializable):
     def balance(self) -> int:
         return self.wallet_balance()
 
+    def json(self, *args, **kwargs):
+        return super().json(*args, **{**kwargs, "exclude": {"private_key"}})
+
     def wallet_balance(self):
         """
         Calculate the balance of a wallet by adding all unspent transaction outputs that

@@ -13,4 +13,4 @@ class Serializable(BaseModel):
         elif isinstance(representation, str):
             return cls.parse_raw(representation)
         else:
-            raise TypeError(f"Parsing '{type(representation)}' is not supported.")
+            raise TypeError(f"Parsing '{type(representation)}' is not supported")

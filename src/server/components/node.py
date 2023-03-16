@@ -48,23 +48,32 @@ class Node(Serializable):
         logger.info("Registered wallet address '{}'", self.wallet.public_key)
 
     def create_transaction(self, recipient_address: str, amount: int) -> Result:
+        if recipient_address not in self.wallets:
+            return Result.not_found(f"Unknown receipient '{recipient_address}'")
+
+        if recipient_address == self.wallet.public_key:
+            return Result.conflict(f"Recipient and sender addresses are identical.")
+
+        if amount <= 0:
+            return Result.invalid(f"Invalid transaction amount '{amount}'")
+
         logger.info("Creating transaction")
 
-        recipient_wallet = self.wallets[recipient_address]
-
-        i, transaction_inputs = 0, []
-        while amount > 0:
+        counter, i, transaction_inputs = amount, 0, []
+        while counter > 0 and i < len(self.wallet.utxos):
             id, _, _, transaction_amount = self.wallet.utxos[i]
 
-            if amount - transaction_amount > 0:
+            if counter - transaction_amount > 0:
                 transaction_inputs.append(id)
-                amount -= transaction_amount
-            elif amount - transaction_amount == 0:
+                counter -= transaction_amount
+            elif counter - transaction_amount == 0:
                 transaction_inputs.append(id)
-                amount = 0
+                counter = 0
             else:
                 transaction_inputs.append(id)
-                amount = 0
+                counter = 0
+
+            i += 1
 
         transaction = Transaction.create_transaction(
             self.wallet.public_key,
@@ -75,7 +84,7 @@ class Node(Serializable):
             self.wallet.private_key,
         )
 
-        change = recipient_wallet.balance - amount
+        change = self.wallet.balance - amount
         transaction.transaction_outputs = [
             (f"{self.id}:{transaction.id}", transaction.id, recipient_address, amount),
             (
@@ -128,9 +137,14 @@ class Node(Serializable):
         wallet.utxos.append(transaction.transaction_outputs[0])
 
         wallet = self.wallets[transaction.sender_address]
-        for i in range(len(wallet.utxos)):
+
+        i = 0
+        while i < len(wallet.utxos):
             if wallet.utxos[i][0] in transaction.transaction_inputs:
                 del wallet.utxos[i]
+
+            i += 1
+
         wallet.utxos.append(transaction.transaction_outputs[1])
 
     def broadcast_transaction(self, transaction: Transaction) -> None:
@@ -144,7 +158,10 @@ class Node(Serializable):
             http.post(f"{remote_address}/transactions/broadcast", transaction)
 
     def view_transactions(self) -> tp.List[Transaction]:
-        return self.pending_transactions
+        if self.debug:
+            return self.blockchain.blocks[-1].transactions + self.pending_transactions
+
+        return self.blockchain.blocks[-1].transactions
 
     def mining(self):
         while True:
@@ -251,6 +268,7 @@ class Node(Serializable):
 class EnrollRequest(Serializable):
     network: tp.List[tp.Tuple[str, str]]
     blockchain: Blockchain
+    wallets: tp.List[Wallet]
 
 
 class Bootstrap(Node):
@@ -312,7 +330,11 @@ class Bootstrap(Node):
 
                 http.post(
                     f"{remote_address}/nodes/enroll",
-                    EnrollRequest(network=self.network, blockchain=self.blockchain),
+                    EnrollRequest(
+                        network=self.network,
+                        blockchain=self.blockchain,
+                        wallets=list(self.wallets.values()),
+                    ),
                 )
 
                 self.create_transaction(public_key, 100)
@@ -348,7 +370,10 @@ class Peer(Node):
         logger.info("Received id: {}", self.id)
 
     def enroll_acknowledge(
-        self, network: tp.List[tp.Tuple[str, str]], blockchain: Blockchain
+        self,
+        network: tp.List[tp.Tuple[str, str]],
+        blockchain: Blockchain,
+        wallets: tp.List[Wallet],
     ) -> Result:
         result = self.validate_chain(blockchain)
         if not result:
@@ -356,9 +381,9 @@ class Peer(Node):
 
         self.network = network
         self.blockchain = blockchain
-        for _, public_key in network:
-            if public_key != self.wallet.public_key:
-                self.wallets[public_key] = Wallet(public_key=public_key, utxos=[])
+        for wallet in wallets:
+            if wallet.public_key != self.wallet.public_key:
+                self.wallets[wallet.public_key] = wallet
 
         logger.info("Node {} received network and blockchain", self.id)
 

@@ -1,4 +1,5 @@
 from components.blockchain import Blockchain
+from components.wallet import Wallet
 from core.blueprint import Blueprint
 from flask import current_app, request
 
@@ -27,13 +28,15 @@ def enroll():
     payload = request.json
     network = payload.get("network", None)
     blockchain = payload.get("blockchain", None)
+    wallets = payload.get("wallets", None)
 
     if not network or not blockchain:
         blueprint.bad_request("Either network or blockchain is empty or null")
 
     blockchain = Blockchain.from_json(blockchain)
-    result = current_app.node.enroll_acknowledge(network, blockchain)
+    wallets = [Wallet.from_json(wallet) for wallet in wallets]
+    result = current_app.node.enroll_acknowledge(network, blockchain, wallets)
     if not result:
-        blueprint.error(result)
+        blueprint.error(result.error)
 
     return blueprint.success()
