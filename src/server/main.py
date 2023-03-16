@@ -70,7 +70,15 @@ CORS(app)
     show_default=True,
     help="Enable debug mode",
 )
-def create_app(ip, port, bootstrap, capacity, difficulty, nodes, debug):
+@click.option(
+    "-v",
+    "--verbose",
+    default=False,
+    is_flag=True,
+    show_default=True,
+    help="Enable verbose mode",
+)
+def create_app(ip, port, bootstrap, capacity, difficulty, nodes, debug, verbose):
     setup_logging()
 
     register_blueprints(app, "api")
@@ -84,7 +92,7 @@ def create_app(ip, port, bootstrap, capacity, difficulty, nodes, debug):
             request.full_path,
         )
 
-    if debug is True:
+    if verbose is True:
 
         @app.after_request
         def _(response):

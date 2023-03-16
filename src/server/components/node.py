@@ -1,5 +1,3 @@
-import hashlib
-import json
 import threading
 import time
 import typing as tp
@@ -171,7 +169,7 @@ class Node(Serializable):
             result = self.validate_block(block)
             if not result:
                 logger.error(result.error.message)
-                # TODO: continue
+                continue
 
             self.persist_block(block)
             self.broadcast_block(block)
@@ -200,7 +198,7 @@ class Node(Serializable):
             return Result.invalid(f"Block {block.index} has incorrect hash")
 
         # Check if block's previous hash is equal to hash of previous block
-        if block.current_hash != previous_block.previous_hash:
+        if block.previous_hash != previous_block.current_hash:
             return Result.invalid(f"Block {block.index} previous hash mismatch")
 
         return Result.ok()
@@ -284,7 +282,6 @@ class Bootstrap(Node):
         ]
 
         genesis_block = Block(
-            capacity=self.capacity,
             index=0,
             timestamp=datetime.utcnow(),
             nonce=0,

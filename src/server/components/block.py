@@ -4,7 +4,6 @@ from datetime import datetime
 
 from components import Serializable
 from components.transaction import Transaction
-from loguru import logger
 from pydantic import Field
 
 
@@ -13,9 +12,12 @@ class Block(Serializable):
     timestamp: datetime
     nonce: int
     previous_hash: str
-    current_hash: tp.Optional[str] = None
     transactions: tp.List[Transaction] = Field(default_factory=list)
+    current_hash: tp.Optional[str] = None
 
     @classmethod
-    def calculate_hash(cls, block: "Block") -> None:
-        return hashlib.sha256(block.json().encode("utf-8")).hexdigest()
+    def calculate_hash(cls, block: "Block", include_hash: bool = False) -> None:
+        data = block.json() if include_hash else block.json(exclude={"current_hash"})
+        data = data.encode("utf-8")
+
+        return hashlib.sha256(data).hexdigest()

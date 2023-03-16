@@ -3,7 +3,6 @@ import typing as tp
 
 import click
 import requests
-from rich import print, print_json
 from rich.console import Console
 
 console = Console()

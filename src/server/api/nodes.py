@@ -1,4 +1,3 @@
-from components.block import Block
 from components.blockchain import Blockchain
 from core.blueprint import Blueprint
 from flask import current_app, request

@@ -1,6 +1,5 @@
-from components.block import Block
 from core.blueprint import Blueprint
-from flask import current_app, request
+from flask import current_app
 from loguru import logger
 
 blueprint = Blueprint("blockchain", __name__)
