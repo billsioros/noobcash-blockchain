@@ -17,3 +17,7 @@ python3.6 -m pip install -r requirements.txt
 scp -6 -r /home/user/noobcash-blockchain/  user@\[snf-35093.ok-kno.grnetcloud.net\]:/home/user/
 # Connect to peer
 sshpass -p '<PASSWORD>' ssh user@snf-35093.ok-kno.grnetcloud.net
+# Running the bootstrap node
+python src/server/main.py -6
+# Running the peer nodes
+python3.6 src/server/main.py -6 --bootstrap http://\[2001:648:2ffe:501:cc00:13ff:fec5:f6db\]:5000 -n -2

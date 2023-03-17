@@ -13,8 +13,12 @@ def register():
 
     payload = request.json
 
+    remote_address = request.remote_addr
+    if current_app.config["USE_IPV6"]:
+        remote_address = f"[{remote_address}]"
+
     node_id = current_app.node.enroll(
-        f"http://{request.remote_addr}:{payload['port']}", payload["public_key"]
+        f"http://{remote_address}:{payload['port']}", payload["public_key"]
     )
 
     return blueprint.success({"id": node_id})

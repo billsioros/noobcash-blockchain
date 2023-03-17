@@ -10,19 +10,15 @@ from flask_cors import CORS
 from loguru import logger
 from werkzeug.exceptions import HTTPException
 
-app = Flask(__name__)
-
-CORS(app)
-
 
 @click.command()
 @click.option(
-    "-i",
-    "--ip",
-    type=str,
-    default="0.0.0.0",
+    "-6",
+    "--ipv6",
+    default=False,
+    is_flag=True,
     show_default=True,
-    help="The ip to serve from",
+    help="Whether or not to use ipv6",
 )
 @click.option(
     "-p",
@@ -87,8 +83,20 @@ CORS(app)
     help="Enable verbose mode",
 )
 def create_app(
-    ip, port, bootstrap, capacity, difficulty, nodes, transactions, debug, verbose
+    ipv6: bool,
+    port: int,
+    bootstrap: str,
+    capacity: int,
+    difficulty: int,
+    nodes: int,
+    transactions: Path,
+    debug: bool,
+    verbose: bool,
 ):
+    app = Flask(__name__)
+    app.config.update(USE_IPV6=ipv6)
+    CORS(app)
+
     setup_logging()
 
     register_blueprints(app, "api")
@@ -129,6 +137,7 @@ def create_app(
 
         return jsonify({"message": message}), code, {"ContentType": "application/json"}
 
+    ip = "[::]" if ipv6 else "0.0.0.0"
     if bootstrap is not None:
         app.node = Peer(
             ip=ip,
