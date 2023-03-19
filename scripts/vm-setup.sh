@@ -21,3 +21,5 @@ sshpass -p '<PASSWORD>' ssh user@snf-35093.ok-kno.grnetcloud.net
 python src/server/main.py -6
 # Running the peer nodes
 python3.6 src/server/main.py -6 --bootstrap http://\[2001:648:2ffe:501:cc00:13ff:fec5:f6db\]:5000 -n -2
+# Gathering metrics
+python src/client/main.py -n http://83.212.81.187:5000 metrics

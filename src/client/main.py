@@ -32,6 +32,16 @@ def balance(settings: tp.Dict[str, tp.Any]):
     console.print(response.json())
 
 
+@cli.command()
+@click.pass_obj
+def metrics(settings: tp.Dict[str, tp.Any]):
+    response = requests.get(f"{settings['node']}/metrics/total")
+    if response.status_code != 200:
+        console.print({"status": response.status_code, "error": response.json()})
+
+    console.print(response.json())
+
+
 @cli.group()
 @click.pass_context
 def transactions(ctx: click.Context):

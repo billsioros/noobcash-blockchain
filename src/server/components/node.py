@@ -29,6 +29,7 @@ class Node(Serializable):
     pending_transactions: tp.List[Transaction] = Field(default_factory=list)
     debug: bool = False
     transactions_filepath: tp.Optional[Path] = None
+    metrics_: tp.Dict[str, tp.Dict[str, float]] = Field(default_factory=dict)
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -37,6 +38,24 @@ class Node(Serializable):
 
         if self.transactions_filepath is not None:
             threading.Thread(target=self.transmit_transactions).start()
+
+    @property
+    def metrics(self) -> tp.Dict[str, float]:
+        n_blocks = len(self.blockchain.blocks)
+
+        transactions = {"successful": 0, "failed": 0, "throughput": 0}
+        try:
+            transactions = self.metrics_["transactions"]
+        except KeyError:
+            pass
+
+        return {
+            "transactions": transactions,
+            "blocks": {
+                "mining_time": self.metrics_["blocks"]["mining_time"] / n_blocks,
+                "total_time": self.metrics_["blocks"]["total_time"] / n_blocks,
+            },
+        }
 
     @property
     def is_bootstrap(self) -> bool:
@@ -169,10 +188,14 @@ class Node(Serializable):
         return self.blockchain.blocks[-1].transactions
 
     def mining(self):
+        self.metrics_["blocks"] = {"mining_time": 0, "total_time": 0}
+
         while True:
             if len(self.pending_transactions) < self.capacity:
                 time.sleep(5)
                 continue
+
+            now = time.time()
 
             block = Block(
                 index=len(self.blockchain.blocks),
@@ -186,6 +209,8 @@ class Node(Serializable):
             self.mine_block(block)
             logger.info("Finished mining block {}", block.index)
 
+            self.metrics_["blocks"]["mining_time"] += time.time() - now
+
             result = self.validate_block(block)
             if not result:
                 logger.error(result.error.message)
@@ -193,6 +218,8 @@ class Node(Serializable):
 
             self.persist_block(block)
             self.broadcast_block(block)
+
+            self.metrics_["blocks"]["total_time"] += time.time() - now
 
     def mine_block(self, block: Block):
         """
@@ -273,14 +300,29 @@ class Node(Serializable):
         while len(self.network) < self.n_nodes:
             time.sleep(1)
 
+        self.metrics_["transactions"] = {"successful": 0, "failed": 0, "throughput": 0}
+
         logger.info("Reading transaction file {}", self.transactions_filepath)
+
+        now = time.time()
         with self.transactions_filepath.open("r") as file:
             for node_id, amount in map(str.split, file.readlines()):
                 node_id, amount = int(node_id[2:]), int(amount)
-
                 _, receiver_address = self.network[node_id]
-                self.create_transaction(receiver_address, amount)
-                time.sleep(1)
+
+                result = self.create_transaction(receiver_address, amount)
+                if result:
+                    self.metrics_["transactions"]["successful"] += 1
+                else:
+                    self.metrics_["transactions"]["failed"] += 1
+
+        elapsed = time.time() - now
+
+        n_successful_transactions = self.metrics_["transactions"]["successful"]
+        n_failed_transactions = self.metrics_["transactions"]["failed"]
+        n_transactions = n_successful_transactions + n_failed_transactions
+
+        self.metrics_["transactions"]["throughput"] = n_transactions / elapsed
 
         logger.info("Finished reading file {}", self.transactions_filepath)
 
@@ -360,6 +402,41 @@ class Bootstrap(Node):
                 self.create_transaction(public_key, 100)
 
         return len(self.network) - 1
+
+    def gather_metrics(self) -> tp.Dict[str, tp.Dict[str, float]]:
+        global_metrics = {
+            "transactions": {
+                "total_successful": 0,
+                "total_failed": 0,
+                "average_throughput": 0,
+            },
+            "blocks": {"average_mining_time": 0, "average_total_time": 0},
+        }
+
+        for remote_address, _ in self.network[: self.id] + self.network[self.id + 1 :]:
+            logger.info("Gathering metrics for {}", remote_address)
+
+            response = http.get(f"{remote_address}/metrics/")
+            local_metrics = response.json()
+
+            global_metrics["transactions"]["total_successful"] += local_metrics[
+                "transactions"
+            ]["successful"]
+            global_metrics["transactions"]["total_failed"] += local_metrics[
+                "transactions"
+            ]["failed"]
+            global_metrics["transactions"]["average_throughput"] += (
+                local_metrics["transactions"]["throughput"] / self.n_nodes
+            )
+
+            global_metrics["blocks"]["average_mining_time"] += (
+                local_metrics["blocks"]["mining_time"] / self.n_nodes
+            )
+            global_metrics["blocks"]["average_total_time"] += (
+                local_metrics["blocks"]["total_time"] / self.n_nodes
+            )
+
+        return global_metrics
 
 
 class Peer(Node):
