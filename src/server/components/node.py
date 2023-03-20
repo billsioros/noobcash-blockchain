@@ -383,11 +383,10 @@ class Bootstrap(Node):
         logger.info("Registering {}", remote_address)
 
         self.network.append((remote_address, public_key))
+        self.wallets[public_key] = Wallet(public_key=public_key, utxos=[])
 
         if len(self.network) == self.n_nodes:
             for remote_address, public_key in self.network[1:]:
-                self.wallets[public_key] = Wallet(public_key=public_key, utxos=[])
-
                 logger.info("Enrolling {}", remote_address)
 
                 http.post(
@@ -399,6 +398,9 @@ class Bootstrap(Node):
                     ),
                 )
 
+            time.sleep(5)
+
+            for remote_address, public_key in self.network[1:]:
                 self.create_transaction(public_key, 100)
 
         return len(self.network) - 1

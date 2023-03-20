@@ -25,6 +25,7 @@ def cli(ctx: click.Context, node):
 @cli.command()
 @click.pass_obj
 def balance(settings: tp.Dict[str, tp.Any]):
+    """Return the account balance"""
     response = requests.get(f"{settings['node']}/wallet/balance")
     if response.status_code != 200:
         console.print({"status": response.status_code, "error": response.json()})
@@ -35,6 +36,7 @@ def balance(settings: tp.Dict[str, tp.Any]):
 @cli.command()
 @click.pass_obj
 def metrics(settings: tp.Dict[str, tp.Any]):
+    """Return the distributed-system's evaluation metrics"""
     response = requests.get(f"{settings['node']}/metrics/total")
     if response.status_code != 200:
         console.print({"status": response.status_code, "error": response.json()})
@@ -45,12 +47,13 @@ def metrics(settings: tp.Dict[str, tp.Any]):
 @cli.group()
 @click.pass_context
 def transactions(ctx: click.Context):
-    pass
+    """Transaction related commands"""
 
 
 @transactions.command()
 @click.pass_obj
 def view(settings: tp.Dict[str, tp.Any]):
+    """View the transactions included in the most recently verified block"""
     response = requests.get(f"{settings['node']}/transactions")
     if response.status_code != 200:
         console.print({"status": response.status_code, "error": response.json()})
@@ -75,6 +78,7 @@ def view(settings: tp.Dict[str, tp.Any]):
 @click.option("-a", "--amount", type=int, help="The amount of Noobcash to transfer")
 @click.pass_obj
 def create(settings: tp.Dict[str, tp.Any], recipient: str, amount: int):
+    """Create a new transaction"""
     payload = {"recipient_address": recipient, "amount": amount}
 
     response = requests.post(f"{settings['node']}/transactions/create", json=payload)
